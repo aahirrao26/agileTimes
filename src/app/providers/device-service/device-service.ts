@@ -6,6 +6,8 @@ import 'rxjs/add/operator/map';
 import { DeviceModel } from '../../models/device';
 import { NestCamEventModel } from '../../models/nestcam-event';
 import { NotificationService } from '../notification-service/notification-service';
+import { Apollo } from 'apollo-angular';
+import gql from 'graphql-tag';
 
 @Injectable()
 export class DeviceService {
@@ -20,7 +22,7 @@ export class DeviceService {
     devices: Array<DeviceModel>
   };
 
-  constructor(private _nestAPI: NestApplicationInterface, private _notify: NotificationService) {
+  constructor(private apollo: Apollo,private _nestAPI: NestApplicationInterface, private _notify: NotificationService) {
 
     this._deviceStore = { devices: new Array<DeviceModel>() };
 
@@ -133,6 +135,8 @@ export class DeviceService {
   // Sets hasNewEvent property for new devices.
   private _ParseDevicesForMotionEvents(cachedDevices: Array<DeviceModel>, newDevices: Array<DeviceModel>): Array<DeviceModel> {
 
+    console.log("you are in _ParseDevicesForMotionEvents 0" );
+   
     for (var cachedDevice of cachedDevices) {
 
       for (var newDevice of newDevices) {
@@ -143,8 +147,10 @@ export class DeviceService {
 
             newDevice.hasNewEvent = true;
 
+            console.log("you are in _ParseDevicesForMotionEvents 1" );
             // Commenting out until I figure out the cors issue.
             // this._notify.SendMotionNotification(newDevice);
+            this._LogMotionEvent(newDevice);
 
           }
 
@@ -172,6 +178,37 @@ export class DeviceService {
 
     return hasNewMotionEvent;
 
+  }
+
+  
+  private _LogMotionEvent(newDevice: DeviceModel) {
+
+    console.log("you are in _LogMotionEvent");
+    var cameraid = newDevice.id;
+    var cameraname = newDevice.name;
+    var eventdate = newDevice.LastEvent.startTime;
+    var image = newDevice.snapshotURL;  
+      const createMotionEvent = gql`
+        mutation createMotionEvent ($cameraId: String!, $cameraName: String!, $eventDate: DateTime!, $image: String!) {
+          createMotionEvent(cameraId: $cameraId, cameraName: $cameraName, eventDate: $eventDate, image: $image) {
+            id
+          }
+        }
+      `;
+      this.apollo.mutate({
+        mutation: createMotionEvent,
+        variables: {
+          cameraId: cameraid,
+          cameraName: cameraname,
+          eventDate: eventdate,
+          image: image
+        }
+      }).subscribe(({ data }) => {
+        console.log('got data'); 
+      }, (error) => {
+        console.log('there was an error sending the query', error);
+      });
+    
   }
 
 }

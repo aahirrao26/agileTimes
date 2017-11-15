@@ -1,5 +1,6 @@
 import { DeviceService } from '../providers/device-service/device-service';
 import { Component, OnInit, ViewChild } from '@angular/core';
+import { MenuItem, DataTable, LazyLoadEvent, DialogModule, LightboxModule } from "primeng/primeng";
 import { Observable } from "rxjs";
 import { Apollo } from 'apollo-angular';
 import gql from 'graphql-tag';
@@ -10,8 +11,14 @@ import gql from 'graphql-tag';
 })
 export class NestcamComponent implements OnInit {
 
+  @ViewChild("dt") dt: DataTable;
+  
   isStreaming: boolean;
   cameraName: string;
+  selectedRows: Array<any>;  
+  contextMenu: MenuItem[]; 
+  lastestEvents = [];
+  
 
   constructor(private apollo: Apollo, private _deviceService: DeviceService) {
 
@@ -54,6 +61,26 @@ export class NestcamComponent implements OnInit {
 
       }
 
+    });
+
+    const AllMotionEvents = gql`
+    query allMotionEvents {
+      allMotionEvents {
+          id
+          cameraId
+          cameraName
+          eventDate
+          image
+        }
+    }`;
+
+    const queryAllDataObservable = this.apollo.watchQuery({
+
+      query: AllMotionEvents,
+      pollInterval: 100
+
+    }).subscribe(({ data, loading }: any) => {
+      this.lastestEvents = data.allMotionEvents;    
     });
 
   }
